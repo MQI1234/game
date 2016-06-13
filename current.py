@@ -1,4 +1,4 @@
-#backup.py
+#current.py
 
 """
 TO DO:
@@ -7,6 +7,11 @@ background and map changes, environment when player moves to certain areas
 transition!
 less awkwardness in enemy movements
 automatic enemy movement and tracking...
+how to scroll? stay in one place?
+SYNCING SCROLL MASK WITH THE WEIRD SCROLL NOT SCROLL SYSTEM
+-ok so the scroll blitting thinf is OK
+-but the mask is freaking out on meh
+SKELETON, MEDKIT, GEM!
 """
 
 from pygame import *
@@ -17,8 +22,11 @@ from datetime import datetime
 screen=display.set_mode((1200,600))
 
 #---PICTURES---
-pic=transform.smoothscale(image.load("bricks.jpg"),(1200,600))
-pic2=transform.smoothscale(image.load("back2.jpg"),(1200,600))
+back = image.load("level2.png")
+backPic=transform.smoothscale(back,(3000,600))
+mask = image.load("masklev2.png")
+maskPic=transform.smoothscale(mask,(3000,600))
+GREEN = (0,255,0)
 sprites=[transform.smoothscale(image.load("me.png"),(40,40)),transform.smoothscale(image.load("me2.png"),(40,40))]
 enePic=transform.smoothscale(image.load("enemy.png"),(60,60))
 medPic=transform.smoothscale(image.load("object/medkit.png"),(20,20))
@@ -34,56 +42,165 @@ for i in range(10):
     torchRects.append((i*30,50))
 
 #--SPRITES!--#
+def makeMove(name,start,end,typ):
+    ''' This returns a list of pictures. They must be in the folder "name"
+        and start with the name "name".
+        start, end - The range of picture numbers 
+    '''
+    move = []
+    for i in range(start,end+1):
+        move.append(image.load("%s/%s%03d.%s" % (name,name,i,typ)))
+    return move
+"""
+def drawScene(screen,self):
+    offset= 250 - self.X
+    screen.blit(backPic,(offset,0))
+    pic = pics[move][int(frame)]
+    screen.blit(pic,(250,self.rect[1]))
+
+    display.flip()
+"""
+    
+def getPixel(mask,x,y):
+    if 0<= x < mask.get_width() and 0 <= y < mask.get_height():
+        return mask.get_at((int(x),int(y)))[:3]
+    else:
+        return (-1,-1,-1)
+
+def moveUp(self,vy):
+    for i in range(vy):
+        if getPixel(maskPic,self.X+15,self.rect[1]+2) != GREEN:
+            self.rect[1] -= 1
+        else:
+            self.vy = 0
+
+def moveDown(self,vy):
+    
+    for i in range(vy):
+        #print("FALLING",getPixel(backPic,guy[X]+15,guy[Y]+28))
+        if getPixel(maskPic,self.X+15,self.rect[1]+45) != GREEN:
+            self.rect[1] += 1
+        else:
+            self.vy = 0
+            self.step = True
+            
+def moveRight(self,vx):
+    for i in range(vx):
+        if getPixel(maskPic,self.X+28,self.rect[1]+15) != GREEN:
+            self.X += 1
+
+def moveLeft(self,vx):
+    for i in range(vx):
+        if getPixel(maskPic,self.X+2,self.rect[1]+15) != GREEN:
+            self.X -= 1
+def climb(self):
+    y = self.rect[1] + 27
+    while y > self.rect[1]+17 and getPixel(maskPic,self.X,y) == GREEN:
+        y-=1
+    if y > self.rect[1]+17:
+        self.rect[1] = y - 27
+
+RIGHT = 0 # These are just the indices of the moves
+LEFT = 1
+
+ 
+pics = []
+pics.append(makeMove("hunts",10,18,"png"))      # RIGHT
+pics.append(makeMove("hunts",142,150,"png"))    # LEFT
+
+frame=0     # current frame within the move
+move=0      # current move being performed
+
 
 #--PLAYER--
 class Player: #player object
     "tracks current position, velocity, platform, and health"
-    def __init__(char,pic): #takes in picture
-        char.pic=pic
-        char.vy=0
-        char.step=True
-        char.health=200
-        char.gems=0
-        char.rect=Rect(0,500-char.pic.get_height(),pic.get_width(),pic.get_height())
-        char.state=["RIGHT","WALK"]
+    def __init__(self,pics): #takes in picture
+        self.pics=pics
+        self.vy=0
+        self.step=True
+        self.health=200
+        self.gems=0
+        self.rect=Rect(0,400,40,50)
+        self.X=0
+        self.state=["RIGHT","WALK"]
         
-    def move(char): #changes player position according to keyboard input        
+    def move(self): #changes player position according to keyboard input
+        global frame, move, RIGHT, LEFT
         keys=key.get_pressed()
+        self.step=False
+        newMove = -1
+        self.vy+= 1         # add gravity to VY
+        if self.vy < 0:
+            moveUp(self,-self.vy)
+        elif self.vy > 0:
+            moveDown(self,self.vy)
+        
+        if keys[K_SPACE] and self.step:
+            self.vy = -14    
+        elif keys[K_RIGHT] and self.X < 3000:
+            newMove = RIGHT
+            moveRight(self,10)
+            climb(self)
+            
+        elif keys[K_LEFT] and self.X > 0:
+            newMove = LEFT
+            moveLeft(self,10)
+            climb(self)       
 
+        else:
+            frame = 0
+
+        if move == newMove:     # 0 is a standing pose, so we want to skip over it when we are moving
+            frame = frame +0.2 # adding 0.2 allows us to speed up the animation
+            if frame >= len(pics[move]):
+                frame = 1
+        elif newMove != -1:     # a move was selected
+            move = newMove      # make that our current move
+            frame = 1
+        """
         if keys[K_RIGHT]:
-            char.rect[0]+=2
-            char.rect[0]=min(char.rect[0],screen.get_width())
-            char.state[0]="RIGHT"
-            print("r")
-        if keys[K_LEFT]:
-            char.rect[0]-=2
-            char.rect[0]=max(0,char.rect[0])
-            char.state[0]="LEFT"
-            print("l")
-        if keys[K_UP] and char.step==True:
-            char.vy=-15
-            char.step=False
-            print("jump")
-            
-        if char.step==False:
-            char.state[1]="JUMP"
-        char.rect[1]+=char.vy
-        if char.rect[1]>500-char.rect[3]: 
-            char.rect[1]=500-char.rect[3]
-            char.step=True #on ground
-            char.state[1]="WALK"
-        char.vy+=1
+            self.X+=2
+            self.X=min(self.X,screen.get_width())
+            self.state[0]="RIGHT"
 
-    def hit(char): #decreases player health
-        char.health-=5
-        char.health=min(100,char.health)
+        if keys[K_LEFT]:
+            self.X-=2
+            self.X=max(0,self.X)
+            self.state[0]="LEFT"
+
+        if keys[K_UP] and self.step==True:
+            self.vy=-15
+            self.step=False
+
             
-    def draw(char): #draws player on screen
-        screen.blit(char.pic,(char.rect[0],char.rect[1]))
+        if self.step==False:
+            self.state[1]="JUMP"
+        self.rect[1]+=self.vy
+        #replace with scroll mask thingy later
+        if self.rect[1]>500-self.rect[3]: 
+            self.rect[1]=500-self.rect[3]
+            self.step=True #on ground
+            self.state[1]="WALK"
+        self.vy+=1
+        """
+    def hit(self): #decreases player health
+        self.health-=5
+        self.health=min(100,self.health)
+            
+    def draw(self): #draws player on screen
+        global frame, move
+        pic = self.pics[move][int(frame)]
+        if 500<=self.X<=2500:
+            screen.blit(pic,(500,self.rect[1]))
+        elif self.X<500:
+            screen.blit(pic,(self.X,self.rect[1]))
+        elif self.X>2500:
+            screen.blit(pic,(self.X-2000,self.rect[1]))
        
 
-#--ENEMY--
-class Enemy: #enemy object
+#--ENEMIES--
+class Skeleton: #enemy object
     "tracks start pos, current pos, speed"
     
     def __init__(self,pic,x,platY,scroll): #takes in picture and position
@@ -95,14 +212,20 @@ class Enemy: #enemy object
         self.state=["LEFT","WALK"]
         self.scroll=scroll
         #self.range=100
-    def move(self,targ): #takes in target and moves towards it
+    def move(self,targ): #takes in target and moves towards it if target inside certain range, else moves within automated range
+        currentX=self.rect[0]
         if self.scroll==True:
-            self.start=self.startX-targ.rect[0]
+            if 500<=targ.X<=2500:
+                self.start=self.startX-targ.X
+            else:
+                self.start=self.startX
         else:
             self.start=self.startX
+
         #cannot move outside range of 100 left and right
         #automated movement->smoother, even as side scrolls
-        if targ.rect[0]<self.start-100 or targ.rect[0]>self.start+100: #target not within moving range
+        """
+        if targ.X<self.start-100 or targ.X>self.start+100: #target not within moving range
             #automated movement within range
             if self.rect[0]<self.start-100: 
                 self.speed*=-1
@@ -111,9 +234,10 @@ class Enemy: #enemy object
                 self.speed*=-1
                 self.state[0]="LEFT"
             self.rect[0]=int(self.rect[0]+self.speed)
-        if self.start-100<=targ.rect[0]<=self.start+100: #target within moving range
-            d=max(1,dist(self.rect[0],self.rect[1],targ.rect[0],targ.rect[1])) #distance between self and target
-            moveX=(targ.rect[0]-self.rect[0])*self.speed/d #       
+        """
+        if self.start-100<=targ.X<=self.start+100: #target within moving range
+            d=max(1,dist(self.rect[0],self.rect[1],targ.X,targ.rect[1])) #distance between self and target
+            moveX=(targ.X-self.rect[0])*self.speed/d #       
             self.rect[0]=int(self.rect[0]-moveX)
 
     def reset(self): #resets position to starting points
@@ -121,17 +245,48 @@ class Enemy: #enemy object
         
     def draw(self):
         screen.blit(self.pic,(self.rect[0],self.rect[1]))
+
+class Bat:
+    def __init__(self,area,scroll):
+        self.area=area        
+        self.rect=Rect(area[0],0,40,50)
+        self.startX=self.rect[0]+50
+        self.speed=-1
+        self.frame=0
+        self.scroll=scroll
         
+    def move(self,targ):
+        """
+        if self.scroll==True:
+            if 500<=targ.X<=2500:
+                self.area[0]=self.startX-targ.X
+            if not targ.rect.colliderect(self.area):
+                self.rect[0]=self.startX-targ.X
+        """
+        targRect=Rect(targ.X,targ.rect[1],targ.rect[2],targ.rect[3])
+        if targRect.colliderect(self.area):
+            d=max(1,dist(self.rect[0],self.rect[1],targ.X,targ.rect[1])) #distance between self and target
+            moveX=(targ.X-self.rect[0])*self.speed/d       
+            self.rect[0]=int(self.rect[0]-moveX)
+            self.rect[1]+=2
+            
+    def draw(self):
+        pics=makeMove("batty",1,4,"jpg")
+        self.frame+=0.2
+        screen.blit(pics[int(self.frame)%4],(self.rect[0],self.rect[1]))
+            
 #--FUNCTIONS!--
 def dist(x1,x2,y1,y2): 
     return ((x1-x2)**2 + (y1-y2)**2)**0.5
-
+"""
 def checkPic(obj1,pic1,obj2,pic2): #takes in two objects and their pictures; checks if positions are further than pic widths
     space=pic2.get_width()//2+pic1.get_width()//2
     if dist(obj1.x,obj2.x,obj1.y,obj2.y)<=space:
         return True
     return False
-
+"""
+def checkHit(me,enemy): #checks if hit over 1 second: will not lose health rapidly
+    now=datetime.now()
        
 #--OBJECTS!--    
 class Torch:
@@ -144,26 +299,26 @@ class Torch:
         return (now.hour*3600+now.minute*60+now.second-(self.start.hour*3600+self.start.minute*60+self.start.second))
         #return floor(num)
    
-    def torch(self,pic,x,y): #takes pic with transparent circle, position and blits it so circle origin is at position
+    def torch(self,me): #takes pic with transparent circle, position and blits it so circle origin is at position
         #HAVE SEPARATE BACKGROUND FUNCTION MAN, NEED TO MAKE MAPS!!!
-        if x<0:
-            x=0
-        if x>pic.get_width():
-            x=pic.get_width()
-        dark=Surface((pic.get_width(),pic.get_height()))
-        #world=Surface((pic.get_width()*2,pic.get_height()))
+        dark=Surface((screen.get_width(),screen.get_height()))
         dark.set_alpha(100)
         dark.fill((0,0,0))
+        if me.X<500:
+            x=me.X
+        elif 500<=me.X<=2500:
+            x=500
+        elif me.X>2500:
+            x=me.X-2000
+        x+=me.rect[2]//2
+        y=me.rect[1]+me.rect[3]//2
         draw.circle(dark,(111,111,111),(int(x),int(y)),60)
         draw.circle(dark,(200,200,200),(int(x),int(y)),45)
-        #for i in range(2):
-            #world.blit(pic,(pic.get_width()*i,0))
-        #screen.blit(world,(-2*int(x),0))
         screen.blit(dark,(0,0))
         #replace with photoshop and transparent circle pic
 
 class medKit:
-    def __init__(self,pic,x,platY,char,scroll): #takes in pic, x pos, y pos, player
+    def __init__(self,pic,x,platY,scroll): #takes in pic, x pos, y pos, player
         self.worth=20
         self.startX=x
         self.rect=Rect(x,platY-pic.get_height(),pic.get_width(),pic.get_height())
@@ -171,32 +326,34 @@ class medKit:
         self.pic=pic
         self.scroll=scroll
         
-    def move(self,char): #moves posirion across screen if it is scrolling
+    def move(self,me): #moves position across screen if it is scrolling
         if self.scroll==True:
-            self.rect[0]=self.startX-char.rect[0]
+            if 500<=me.X<=2500:
+                self.rect[0]=self.startX-(me.X-500)
         
-    def gain(self,char):
+    def gain(self,me):
         if self.got==False: #collides and not collected
-            char.health+=self.worth
-            char.health=min(200,char.health)
+            me.health+=self.worth
+            me.health=min(200,me.health)
             self.got=True #True means has been collected
-            
+            print("HP")
     def draw(self): 
         #self.newx=self.x-char.rect[0]
         if self.got==False: #only draws if not collected
             screen.blit(self.pic,(self.rect[0],self.rect[1]))
 
 class Gem:
-    def __init__(self,pic,x,platY,char,scroll): #takes in pic, coordinates, player, and if scrolling
+    def __init__(self,pic,x,platY,scroll): #takes in pic, coordinates, player, and if scrolling
         self.startX=x
         self.rect=Rect(x,platY-pic.get_height(),pic.get_width(),pic.get_height())
         self.got=False #False if not collected yet
         self.pic=pic
         self.scroll=scroll
         
-    def move(self,char): #changes position if scrolling
+    def move(self,me): #changes position if scrolling
         if self.scroll==True:
-            self.rect[0]=self.startX-char.rect[0]
+            if 500<=me.X<=2500:
+                self.rect[0]=self.startX-me.X
         
     def gain(self,char): #collected by player
         if self.got==False: #collides and not collected
@@ -218,8 +375,8 @@ def checkMap(curMap,MAPS,me): #which portal and map place to go to (change struc
 
 
 class Map:
-    def __init__(self,pic,scroll,me,enemies,kits,gems,ports):
-        self.pic=pic
+    def __init__(self,back,scroll,me,enemies,kits,gems,ports):
+        self.pic=back
         self.scroll=scroll
         self.x=0
         self.me=me
@@ -229,20 +386,22 @@ class Map:
         self.ports=ports
         
     def backDraw(self):
-        screen=display.set_mode((self.pic.get_width(),self.pic.get_height()))
-        if self.scroll==True:            
-            self.x=-2*self.me.rect[0]
-            if self.x<0:
-                self.x=0
-            if self.x>self.pic.get_width():
-                self.x=self.pic.get_width()
-            screen.blit(self.pic,(self.x,0))
+        if self.scroll==True:
+            if 500<=self.me.X<=2500:
+                self.x=-1*(self.me.X-500)
+                if self.x>0:
+                    self.x=0
+                if self.x<-1*(self.pic.get_width()-screen.get_width()):
+                    self.x=-1*(self.pic.get_width()-screen.get_width())
+                screen.blit(self.pic,(self.x,0))
+            elif self.me.X<500:
+                screen.blit(self.pic,(0,0))
+            elif self.me.X>2500:
+                screen.blit(self.pic,(-1800,0))
         else:
             screen.blit(self.pic,(0,0))
             
-    def objectMove(self):
-        
-        self.me.move()
+    def objectMove(self):        
         
         if len(self.enemies)>0:
             for e in self.enemies:
@@ -259,7 +418,7 @@ class Map:
                 g.move(self.me) #moves kits on screen and in rects
 
     def objectDraw(self):
-        self.me.draw()
+
         if len(self.enemies)>0:
             for e in self.enemies:
                 e.draw()
@@ -272,21 +431,20 @@ class Map:
                  g.draw()
                  
     def objectCollide(self):
-        keys=key.get_pressed()
-        
+        meRect=Rect(self.me.X,self.me.rect[1],self.me.rect[2],self.me.rect[3])
         if len(self.kits)>0:
             for k in self.kits:
-                if self.me.rect.colliderect(k.rect): #checks if rects collide
+                if meRect.colliderect(k.rect): #checks if rects collide
                     k.gain(self.me)
                     
         if len(self.gems)>0:
             for g in self.gems:
-                if self.me.rect.colliderect(g.rect): #checks if rects collide
+                if meRect.colliderect(g.rect): #checks if rects collide
                     g.gain(self.me)
                     
         if len(self.enemies)>0:
             for e in self.enemies:
-                if self.me.rect.colliderect(e.rect): #checks if collide with enemy rect
+                if meRect.colliderect(e.rect): #checks if collide with enemy rect
                     self.me.hit() #decreases player health
 
 
@@ -301,19 +459,20 @@ def gameEnd(me,torch):
    
 #--MENU!--
 
-def story(me):
-    me=Player(me)
-    dude=[[Enemy(enePic,randint(400,1000),500,True)],[Enemy(enePic,1000,500,False)]]
+def story(pics): #actual game loop
+    me=Player(pics)
+    #KEEP INFO IN SEPARATE TEXT FILES LATER-LESS CLUTTER
+    enemy=[[Skeleton(enePic,randint(400,1000),500,True),Bat(Rect(300,0,1000,600),True)],[Skeleton(enePic,1000,500,False)]]
     t=Torch()
-    kits=[[medKit(medPic,i,500,me,True) for i in range(400,601,100)],[medKit(medPic,600,500,me,False)]] #all medkits
-    gems=[[Gem(gem1Pic,900,500,me,True)],[Gem(gem1Pic,800,500,me,False)]] #all gems
+    kits=[[medKit(medPic,i,500,True) for i in range(400,601,100)],[medKit(medPic,600,500,False)]] #all medkits
+    gems=[[Gem(gem1Pic,900,500,True)],[Gem(gem1Pic,800,500,False)]] #all gems
     ports=[[Rect(0,460,40,40)],[Rect(560,460,40,40)]]
-    back1=Surface((pic.get_width(),pic.get_height()))
-    back2=Surface((pic.get_width(),pic.get_height()))
-    for i in range(2):
-        back1.blit(pic,(i*pic.get_width(),0))
-    back2.blit(pic2,(0,0))
-    MAPS=[Map(back1,True,me,dude[0],kits[0],gems[0],ports[0]),Map(back2,False,me,dude[1],kits[1],gems[1],ports[1])]
+    back1=Surface((backPic.get_width(),backPic.get_height()))
+    #mask1=Surface((maskPic.get_width(),maskPic.get_height()))
+    for i in range(1):
+        back1.blit(backPic,(i*backPic.get_width(),0))
+
+    MAPS=[Map(maskPic,True,me,enemy[0],kits[0],gems[0],ports[0],)] #out of file lists pls
     mapNUM=0
     MAP=MAPS[mapNUM]
     hbar=(560,50,me.health,20)
@@ -328,11 +487,10 @@ def story(me):
         if key.get_pressed()[27]: running=False
         
         #---MAP CHANGE--
-        if checkMap(MAP,MAPS,me)!=MAPS.index(MAP):
-            MAP=MAPS[checkMap(MAP,MAPS,me)]
-        screen=display.set_mode((MAP.pic.get_width(),MAP.pic.get_height()))
+        #MAP=MAPS[checkMap(MAP,MAPS,me)]
         
         #---MOVES OBJECTS, CHECKS COLLIDE---
+        me.move()
         MAP.objectMove()
         MAP.objectCollide()
 
@@ -342,13 +500,14 @@ def story(me):
         
         #---DRAWS ON SCREEN---
         MAP.backDraw()
+        me.draw()
         MAP.objectDraw()
-        t.torch(pic,me.rect[0]+me.rect[2]//2,me.rect[1]+me.rect[3]//2)
+        t.torch(me)
         
         for i in range(10-t.torchCount()//10):
             screen.blit(torchPic,torchRects[i])
             
-        draw.rect(screen,(255,255,255),backh,4)
+        draw.rect(screen,(255,255,255),backh,6)
         draw.rect(screen,(255,0,0),hbar)
         screen.blit((text.render(str(10-t.torchCount()%10),True,(255,255,255))),(740,80)) #displays count down in seconds to when a torch is used up
         screen.blit((text.render(str(me.gems)+"/10",True,(255,255,255))),(735,100)) #displays number of gems collected
@@ -364,11 +523,11 @@ def story(me):
             time.wait(1000)
             quit()
         #---------------------
-        myClock.tick(30)
+        myClock.tick(60)
         
     return "menu"    
     
-def instructions():
+def instructions(): #instructions page
     running = True
     inst = image.load("instructions.jpg").convert()
     inst = transform.smoothscale(inst, screen.get_size())
@@ -382,7 +541,7 @@ def instructions():
         display.flip()
     return "menu"
         
-def credit():
+def credit(): #credit page
     running = True
     cred = image.load("credits.jpg").convert()
     cred = transform.smoothscale(cred, screen.get_size())
@@ -440,7 +599,7 @@ def mfSelect(): #player can select gender for sprite after start on menu, before
     while running:
         for e in event.get():
             if e.type==QUIT:
-                return "menu"
+                break
         screen.fill((0,0,0))
         pos=mouse.get_pos()
         mb=mouse.get_pressed()
@@ -462,9 +621,9 @@ while page != "exit":
     if page == "menu":
         page = menu()
     if page == "story":
-        time.wait(500)
-        me=sprites[mfSelect()]
-        page = story(me)
+        time.wait(100)
+        #me=sprites[mfSelect()]
+        page = story(pics)
     if page == "instructions":
         page = instructions()        
     if page == "credits":
