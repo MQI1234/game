@@ -3,15 +3,12 @@
 """
 TO DO:
 
-background and map changes, environment when player moves to certain areas
-transition!
+linear map changes: portals going down, transition key? gem quota? final map?
 less awkwardness in enemy movements
 automatic enemy movement and tracking...
-how to scroll? stay in one place?
-SYNCING SCROLL MASK WITH THE WEIRD SCROLL NOT SCROLL SYSTEM
--ok so the scroll blitting thinf is OK
--but the mask is freaking out on meh
 SKELETON, MEDKIT, GEM!
+might have to do special movement function set for skeleton
+dream: vertical scroll if time...
 """
 
 from pygame import *
@@ -19,7 +16,7 @@ from math import *
 from random import *
 from datetime import datetime
 
-screen=display.set_mode((1200,600))
+screen=display.set_mode((1000,600))
 
 #---PICTURES---
 back = image.load("level2.png")
@@ -42,11 +39,8 @@ for i in range(10):
     torchRects.append((i*30,50))
 
 #--SPRITES!--#
-def makeMove(name,start,end,typ):
-    ''' This returns a list of pictures. They must be in the folder "name"
-        and start with the name "name".
-        start, end - The range of picture numbers 
-    '''
+def makeMove(name,start,end,typ): 
+    #returns list of pics in folder "name" and starting with name, of the range start-end, and type ".typ"
     move = []
     for i in range(start,end+1):
         move.append(image.load("%s/%s%03d.%s" % (name,name,i,typ)))
@@ -77,7 +71,6 @@ def moveUp(self,vy):
 def moveDown(self,vy):
     
     for i in range(vy):
-        #print("FALLING",getPixel(backPic,guy[X]+15,guy[Y]+28))
         if getPixel(maskPic,self.X+15,self.rect[1]+45) != GREEN:
             self.rect[1] += 1
         else:
@@ -88,6 +81,7 @@ def moveRight(self,vx):
     for i in range(vx):
         if getPixel(maskPic,self.X+28,self.rect[1]+15) != GREEN:
             self.X += 1
+            self.X=min(self.X,3000)
 
 def moveLeft(self,vx):
     for i in range(vx):
@@ -100,16 +94,25 @@ def climb(self):
     if y > self.rect[1]+17:
         self.rect[1] = y - 27
 
-RIGHT = 0 # These are just the indices of the moves
+#--ENEMY SPECIFIC MOVEMENT--
+def moveDownSkel(self,y):    
+    for i in range(y):
+        if getPixel(maskPic,self.X+15,self.rect[1]+45) != GREEN:
+            self.rect[1] += 1
+        #else:
+            #self.vy = 0
+            #self.step = True
+
+RIGHT = 0 #indices of Player moves
 LEFT = 1
 
- 
+#maybe change to independent lists 
 pics = []
-pics.append(makeMove("hunts",10,18,"png"))      # RIGHT
-pics.append(makeMove("hunts",142,150,"png"))    # LEFT
-
-frame=0     # current frame within the move
-move=0      # current move being performed
+pics.append(makeMove("hunts",10,18,"png"))      #pictures of Player sprite moving right
+pics.append(makeMove("hunts",142,150,"png"))    #pictures of Player sprite moving left
+pics.append(makeMove("hunts",34,43,"png"))      #pictures of Player sprite falling
+frame=0     #current frame within the move
+move=0      #current move being performed
 
 
 #--PLAYER--
@@ -130,7 +133,7 @@ class Player: #player object
         keys=key.get_pressed()
         self.step=False
         newMove = -1
-        self.vy+= 1         # add gravity to VY
+        self.vy+= 1         #add gravity to VY
         if self.vy < 0:
             moveUp(self,-self.vy)
         elif self.vy > 0:
@@ -151,8 +154,8 @@ class Player: #player object
         else:
             frame = 0
 
-        if move == newMove:     # 0 is a standing pose, so we want to skip over it when we are moving
-            frame = frame +0.2 # adding 0.2 allows us to speed up the animation
+        if move == newMove:     #0 is standing pose, so skips it when Player moves
+            frame = frame +0.4 #speeds up switching through frames
             if frame >= len(pics[move]):
                 frame = 1
         elif newMove != -1:     # a move was selected
@@ -202,17 +205,19 @@ class Player: #player object
 #--ENEMIES--
 class Skeleton: #enemy object
     "tracks start pos, current pos, speed"
-    
-    def __init__(self,pic,x,platY,scroll): #takes in picture and position
+    #do sprite for walking???
+    def __init__(self,pic,x,y,targ,scroll): #takes in picture and position
         self.startX=x
-        self.startY=platY-pic.get_height()
+        self.startY=y-pic.get_height()
         self.rect=Rect(self.startX,self.startY,pic.get_width(),pic.get_height()) #rect position
         self.speed=-2
         self.pic=pic
         self.state=["LEFT","WALK"]
+        self.targ=targ
         self.scroll=scroll
-        #self.range=100
+        self.X=self.rect[0]
     def move(self,targ): #takes in target and moves towards it if target inside certain range, else moves within automated range
+        """
         currentX=self.rect[0]
         if self.scroll==True:
             if 500<=targ.X<=2500:
@@ -224,7 +229,7 @@ class Skeleton: #enemy object
 
         #cannot move outside range of 100 left and right
         #automated movement->smoother, even as side scrolls
-        """
+ 
         if targ.X<self.start-100 or targ.X>self.start+100: #target not within moving range
             #automated movement within range
             if self.rect[0]<self.start-100: 
@@ -235,16 +240,26 @@ class Skeleton: #enemy object
                 self.state[0]="LEFT"
             self.rect[0]=int(self.rect[0]+self.speed)
         """
-        if self.start-100<=targ.X<=self.start+100: #target within moving range
-            d=max(1,dist(self.rect[0],self.rect[1],targ.X,targ.rect[1])) #distance between self and target
-            moveX=(targ.X-self.rect[0])*self.speed/d #       
-            self.rect[0]=int(self.rect[0]-moveX)
-
+        #self.X=self.rect[0]
+        if self.rect[0]<targ.X:
+            moveRight(self,6)
+            climb(self)
+        elif self.rect[0]>targ.X:
+            moveLeft(self,6)
+            climb(self)
+        self.X=self.rect[0]
+        self.rect[0]=self.X
+        moveDownSkel(self,10)
     def reset(self): #resets position to starting points
         self.rect[0]=self.startX
         
     def draw(self):
-        screen.blit(self.pic,(self.rect[0],self.rect[1]))
+        if 500<=self.targ.X<=2500:
+            screen.blit(self.pic,(self.rect[0]-(self.targ.X-500),self.rect[1]))
+        elif self.targ.X<500:
+            screen.blit(self.pic,(self.rect[0],self.rect[1]))
+        elif self.targ.X>2500:
+            screen.blit(self.pic,(self.rect[0]-2000,self.rect[1]))
 
 class Bat:
     def __init__(self,area,scroll):
@@ -271,20 +286,14 @@ class Bat:
             self.rect[1]+=2
             
     def draw(self):
-        pics=makeMove("batty",1,4,"jpg")
-        self.frame+=0.2
-        screen.blit(pics[int(self.frame)%4],(self.rect[0],self.rect[1]))
+        pics=makeMove("batty",1,4,"jpg") #all frames of bat sprite
+        self.frame+=0.2 #gradually adds to frame
+        screen.blit(pics[int(self.frame)%4],(self.rect[0],self.rect[1])) #constantly rotates through pictures
             
 #--FUNCTIONS!--
 def dist(x1,x2,y1,y2): 
     return ((x1-x2)**2 + (y1-y2)**2)**0.5
-"""
-def checkPic(obj1,pic1,obj2,pic2): #takes in two objects and their pictures; checks if positions are further than pic widths
-    space=pic2.get_width()//2+pic1.get_width()//2
-    if dist(obj1.x,obj2.x,obj1.y,obj2.y)<=space:
-        return True
-    return False
-"""
+
 def checkHit(me,enemy): #checks if hit over 1 second: will not lose health rapidly
     now=datetime.now()
        
@@ -367,6 +376,7 @@ class Gem:
 #--MAP--
 
 def checkMap(curMap,MAPS,me): #which portal and map place to go to (change structure later)
+    #one portal per map, cannot go back, keeps going down : much easier man
     bar=key.get_pressed()    
     for p in curMap.ports:
         if me.rect.colliderect(p) and bar[K_SPACE]:
@@ -374,7 +384,7 @@ def checkMap(curMap,MAPS,me): #which portal and map place to go to (change struc
     return MAPS.index(curMap)
 
 
-class Map:
+class Map: #takes in background pic, enemies, other objects, portal, and tracks state of all
     def __init__(self,back,scroll,me,enemies,kits,gems,ports):
         self.pic=back
         self.scroll=scroll
@@ -385,24 +395,25 @@ class Map:
         self.gems=gems
         self.ports=ports
         
-    def backDraw(self):
+    def backDraw(self): #draws itself back according to offset
         if self.scroll==True:
-            if 500<=self.me.X<=2500:
-                self.x=-1*(self.me.X-500)
-                if self.x>0:
+            if 500<=self.me.X<=2500: #scroll within this range
+                self.x=-1*(self.me.X-500) #offset
+                if self.x>0: #never blits right to black screen
                     self.x=0
-                if self.x<-1*(self.pic.get_width()-screen.get_width()):
+                if self.x<-1*(self.pic.get_width()-screen.get_width()): #never blits left to black screen
                     self.x=-1*(self.pic.get_width()-screen.get_width())
                 screen.blit(self.pic,(self.x,0))
-            elif self.me.X<500:
+            #stationary displays
+            elif self.me.X<500: #not scroll while in this range
                 screen.blit(self.pic,(0,0))
-            elif self.me.X>2500:
-                screen.blit(self.pic,(-1800,0))
+            elif self.me.X>2500: #not scroll while in this range
+                screen.blit(self.pic,(-2000,0))
         else:
             screen.blit(self.pic,(0,0))
             
-    def objectMove(self):        
-        
+    def objectMove(self): #moves all objects of Map        
+        #if the lists are not empty, moves objects
         if len(self.enemies)>0:
             for e in self.enemies:
                 e.move(self.me)
@@ -418,7 +429,7 @@ class Map:
                 g.move(self.me) #moves kits on screen and in rects
 
     def objectDraw(self):
-
+        #if lists not empty, draws objects
         if len(self.enemies)>0:
             for e in self.enemies:
                 e.draw()
@@ -430,8 +441,9 @@ class Map:
             for g in self.gems:
                  g.draw()
                  
-    def objectCollide(self):
-        meRect=Rect(self.me.X,self.me.rect[1],self.me.rect[2],self.me.rect[3])
+    def objectCollide(self): #checks collisions between objects
+        meRect=Rect(self.me.X,self.me.rect[1],self.me.rect[2],self.me.rect[3]) #actual rect position of Player, not blitted position
+        #if lists not empty, checks collide between rects
         if len(self.kits)>0:
             for k in self.kits:
                 if meRect.colliderect(k.rect): #checks if rects collide
@@ -452,7 +464,7 @@ class Map:
 
 
 #--ENDS GAME!--
-def gameEnd(me,torch):
+def gameEnd(me,torch): #ends game loop if no health, torch runs out, or completed last map
     if me.health==0 or torch.torchCount()/10>10: 
         return True
     return False
@@ -462,7 +474,7 @@ def gameEnd(me,torch):
 def story(pics): #actual game loop
     me=Player(pics)
     #KEEP INFO IN SEPARATE TEXT FILES LATER-LESS CLUTTER
-    enemy=[[Skeleton(enePic,randint(400,1000),500,True),Bat(Rect(300,0,1000,600),True)],[Skeleton(enePic,1000,500,False)]]
+    enemy=[[Skeleton(enePic,randint(400,1000),500,me,True),Bat(Rect(300,0,1000,600),True)],[Skeleton(enePic,1000,500,me,False)]]
     t=Torch()
     kits=[[medKit(medPic,i,500,True) for i in range(400,601,100)],[medKit(medPic,600,500,False)]] #all medkits
     gems=[[Gem(gem1Pic,900,500,True)],[Gem(gem1Pic,800,500,False)]] #all gems
@@ -480,8 +492,8 @@ def story(pics): #actual game loop
     myClock=time.Clock()
     running=True    
     while running:
-        for evnt in event.get():
-            if evnt.type==QUIT:
+        for e in event.get():
+            if e.type==QUIT:
                 running=False
                 
         if key.get_pressed()[27]: running=False
