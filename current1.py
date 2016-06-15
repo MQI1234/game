@@ -36,6 +36,7 @@ enePic=transform.smoothscale(image.load("enemy.png"),(60,60))
 medPic=transform.smoothscale(image.load("object/medkit.png"),(20,20))
 gem1Pic=transform.smoothscale(image.load("object/gem1.png"),(50,30))
 torchPic=transform.smoothscale(image.load("object/torch.png"),(20,60))
+iciclePic=image.load("object/icicle.png")
 
 #--------------
     
@@ -174,7 +175,6 @@ class Player: #player object
        
 
 #--ENEMIES--
-hitList=[True,False]
 class Skeleton: #enemy object
     "tracks start pos, current pos, speed"
     #do sprite for walking???
@@ -239,12 +239,7 @@ class Bat:
             d=max(1,dist(self.rect[0],self.rect[1],targ.rect[0],targ.rect[1])) #distance between self and target
             moveX=(targ.rect[0]-self.rect[0])*self.speed/d       
             self.rect[0]=int(self.rect[0]-moveX)
-            self.rect[1]+=2
-            
-    def hitReset(self): #switches between T/F values
-        global hitList
-        self.hit+=1
-        self.hit=self.hit%2        
+            self.rect[1]+=2     
            
     def draw(self):
         pics=makeMove("batty",1,4,"jpg") #all frames of bat sprite
@@ -257,6 +252,30 @@ class Bat:
         elif self.targ.rect[0]>2500:
             screen.blit(pics[int(self.frame)%4],(self.rect[0]-2000,self.rect[1]))
 
+class Icicle:
+    def __init__(self,area,targ,scroll):
+        self.area=area        
+        self.rect=Rect(area[0],0,40,50)
+        self.startX=self.rect[0]
+        self.speed=-1
+        self.scroll=scroll
+        self.targ=targ
+        self.hit=0
+        self.count=0
+    def move(self,targ):
+        targRect=Rect(targ.rect[0],targ.rect[1],targ.rect[2],targ.rect[3])
+        if targRect.colliderect(self.area):
+            self.count+=1
+        if self.count>=1:
+            self.rect[1]+=4      
+           
+    def draw(self):
+        if 500<=self.targ.rect[0]<=2500:
+            screen.blit(iciclePic,(self.rect[0]-(self.targ.rect[0]-500),self.rect[1]))
+        elif self.targ.rect[0]<500:
+            screen.blit(iciclePic,(self.rect[0],self.rect[1]))
+        elif self.targ.rect[0]>2500:
+                screen.blit(iciclePic,(self.rect[0]-2000,self.rect[1]))
             
 #--FUNCTIONS!--
 def dist(x1,x2,y1,y2): 
@@ -340,16 +359,23 @@ class Gem:
                 screen.blit(self.pic,(self.rect[0]-2000,self.rect[1]))
 
 #--MAP--
-
+totgems=0
 def checkMap(curMap,MAPS,me): #takes in map, list of maps, and player object
+    global totgems
     #checks if player falls in gap in mask, and changes to next map
     if me.rect[1]>600:
             fallDown(me)
             me.reset()
-            return MAPS[MAPS.index(curMap)+1]
+            if MAPS.index(curMap)==len(MAPS)-1:
+                endGame(totgems)
+            else:
+                return MAPS[MAPS.index(curMap)+1]
     return curMap
 
+
 def fallDown(me): #animation of falling down hole
+    global totgems
+    totgems+=me.gems
     falls=makeMove("hunts",34,43,"png")
     frame=0
     offset=0
@@ -442,14 +468,20 @@ def gameEnd(me,torch): #ends game loop if no health, torch runs out, or complete
     if me.health==0 or torch.torchCount()/10>=10: 
         return True
     return False
-   
+
+def endGame(gems):
+    screen.fill((0,0,0))
+    screen.blit((text.render("YOU GOT:"+str(gems)+"/7",True,(255,255,255))),(360,280))
+    display.flip()
+    time.wait(2000)
+    
 #--MENU!--
 
 def story(pics): #actual game loop
-    global MAP
+    global MAP, gems
     me=Player(pics)
     #KEEP INFO IN SEPARATE TEXT FILES LATER-LESS CLUTTER
-    enemy=[[Skeleton(enePic,randint(400,1000),500,me,True),Bat(Rect(300,0,1000,600),me,True)],[Skeleton(enePic,1000,500,me,True)]]
+    enemy=[[Skeleton(enePic,randint(400,1000),500,me,True),Bat(Rect(300,0,1000,600),me,True),Icicle(Rect(400,0,1000,600),me,True)],[Skeleton(enePic,1000,500,me,True)]]
     t=Torch()
     kits=[[medKit(medPic,i,500,True) for i in range(400,601,100)],[medKit(medPic,600,500,True)]] #all medkits
     gems=[[Gem(gem1Pic,900,500,True),Gem(gem1Pic,1200,500,True),Gem(gem1Pic,2000,500,True)],[Gem(gem1Pic,800,500,True),Gem(gem1Pic,1500,500,True),Gem(gem1Pic,2200,500,True)]] #all gems
@@ -504,7 +536,8 @@ def story(pics): #actual game loop
             screen.blit((text.render("GAME OVER",True,(255,255,255))),(360,280))
             display.flip()
             time.wait(1000)
-            quit()
+            endGame(gems)
+            break
         #---------------------
         myClock.tick(60)
         
