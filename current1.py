@@ -293,25 +293,7 @@ class Torch:
         now=datetime.now()
         return (now.hour*3600+now.minute*60+now.second-(self.start.hour*3600+self.start.minute*60+self.start.second))
    
-    def torch(self,me): #takes pic with transparent circle, position and blits it so circle origin is at position
-        #HAVE SEPARATE BACKGROUND FUNCTION MAN, NEED TO MAKE MAPS!!!
-        """
-        dark=Surface((screen.get_width(),screen.get_height()))
-        dark.set_alpha(100)
-        dark.fill((0,0,0))
-        if me.rect[0]<500:
-            x=me.rect[0]
-        elif 500<=me.rect[0]<=2500:
-            x=500
-        elif me.rect[0]>2500:
-            x=me.rect[0]-2000
-        x+=me.rect[2]//2
-        y=me.rect[1]+me.rect[3]//2
-        draw.circle(dark,(111,111,111),(int(x),int(y)),60)
-        draw.circle(dark,(200,200,200),(int(x),int(y)),45)
-        screen.blit(dark,(0,0))
-        #replace with photoshop and transparent circle pic
-        """
+    def torchLight(self,me): #takes pic with transparent circle, player and blits it so circle origin is at player centre
         if me.rect[0]<500:
             x=me.rect[0]
         elif 500<=me.rect[0]<=2500:
@@ -321,6 +303,7 @@ class Torch:
         x+=me.rect[2]//2
         y=me.rect[1]+me.rect[3]//2
         screen.blit(self.pic,(x-1500,y-1000))
+        
 class medKit:
     def __init__(self,pic,x,platY,scroll): #takes in pic, x pos, y pos, player
         self.worth=20
@@ -398,6 +381,7 @@ def fallDown(me): #animation of falling down hole
                 running=False
         screen.blit(fallPic,(0,offset))
         screen.blit(falls[frame%9],(500,selfdown))
+        screen.blit(shadow,(-1000,selfdown-980))
         screen.blit(screen.copy(),(0,0))
         frame+=1
         offset-=50
@@ -476,15 +460,16 @@ class Map: #takes in background pic, enemies, other objects, portal, and tracks 
 
 #--ENDS GAME!--
 def gameEnd(me,torch): #ends game loop if no health, torch runs out, or completed last map
-    if me.health==0 or torch.torchCount()/10>=10: 
+    if me.health==0 or torch.torchCount()/45>=10: 
         return True
     return False
 
-def endGame(gems):
+def endGame(gems): #final screen
     screen.fill((0,0,0))
     screen.blit((text.render("YOU GOT:"+str(gems)+"/7",True,(255,255,255))),(360,280))
     display.flip()
     time.wait(2000)
+    quit()
     
 #--MENU!--
 
@@ -530,14 +515,14 @@ def story(pics): #actual game loop
         MAP.backDraw()
         me.draw()
         MAP.objectDraw()
-        t.torch(me)
+        t.torchLight(me)
         
-        for i in range(10-t.torchCount()//10):
-            screen.blit(torchPic,torchRects[i])
+        for i in range(10-t.torchCount()//45): #number of torches left out of ten
+            screen.blit(torchPic,torchRects[i]) 
             
         draw.rect(screen,(255,255,255),backh,6)
         draw.rect(screen,(255,0,0),hbar)
-        screen.blit((text.render(str(10-t.torchCount()%10),True,(255,255,255))),(740,80)) #displays count down in seconds to when a torch is used up
+        screen.blit((text.render(str(45-t.torchCount()%45),True,(255,255,255))),(740,80)) #displays count down in seconds to when a torch is used up
         screen.blit((text.render(str(me.gems)+"/"+str(MAP.gemCount),True,(255,255,255))),(735,100)) #displays number of gems collected
         display.flip()
         
@@ -550,7 +535,6 @@ def story(pics): #actual game loop
             display.flip()
             time.wait(1000)
             endGame(gems)
-            break
         #---------------------
         myClock.tick(60)
         
