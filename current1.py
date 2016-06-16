@@ -20,6 +20,7 @@ from datetime import datetime
 screen=display.set_mode((1000,600))
 
 #---PICTURES---
+shadow=image.load("black.png")
 falling=image.load("falling.png")
 fallPic=transform.smoothscale(falling,(1000,2484))
 back = image.load("level2.png")
@@ -285,15 +286,16 @@ def dist(x1,x2,y1,y2):
 'have to do torch taking into account time spent when transitioning'
 class Torch: 
     "tracks time since start, makes torchlight effect"
-    def __init__(self):
+    def __init__(self,pic):
         self.start=datetime.now()
-
+        self.pic=pic
     def torchCount(self): #returns count of seconds passed since start
         now=datetime.now()
         return (now.hour*3600+now.minute*60+now.second-(self.start.hour*3600+self.start.minute*60+self.start.second))
    
     def torch(self,me): #takes pic with transparent circle, position and blits it so circle origin is at position
         #HAVE SEPARATE BACKGROUND FUNCTION MAN, NEED TO MAKE MAPS!!!
+        """
         dark=Surface((screen.get_width(),screen.get_height()))
         dark.set_alpha(100)
         dark.fill((0,0,0))
@@ -309,7 +311,16 @@ class Torch:
         draw.circle(dark,(200,200,200),(int(x),int(y)),45)
         screen.blit(dark,(0,0))
         #replace with photoshop and transparent circle pic
-
+        """
+        if me.rect[0]<500:
+            x=me.rect[0]
+        elif 500<=me.rect[0]<=2500:
+            x=500
+        elif me.rect[0]>2500:
+            x=me.rect[0]-2000
+        x+=me.rect[2]//2
+        y=me.rect[1]+me.rect[3]//2
+        screen.blit(self.pic,(x-1000,y-750))
 class medKit:
     def __init__(self,pic,x,platY,scroll): #takes in pic, x pos, y pos, player
         self.worth=20
@@ -482,7 +493,7 @@ def story(pics): #actual game loop
     me=Player(pics)
     #KEEP INFO IN SEPARATE TEXT FILES LATER-LESS CLUTTER
     enemy=[[Skeleton(enePic,randint(400,1000),500,me,True),Bat(Rect(300,0,1000,600),me,True),Icicle(Rect(400,0,1000,600),me,True)],[Skeleton(enePic,1000,500,me,True)]]
-    t=Torch()
+    t=Torch(shadow)
     kits=[[medKit(medPic,i,500,True) for i in range(400,601,100)],[medKit(medPic,600,500,True)]] #all medkits
     gems=[[Gem(gem1Pic,900,500,True),Gem(gem1Pic,1200,500,True),Gem(gem1Pic,2000,500,True)],[Gem(gem1Pic,800,500,True),Gem(gem1Pic,1500,500,True),Gem(gem1Pic,2200,500,True)]] #all gems
 
