@@ -320,7 +320,7 @@ class Torch:
             x=me.rect[0]-2000
         x+=me.rect[2]//2
         y=me.rect[1]+me.rect[3]//2
-        screen.blit(self.pic,(x-1000,y-750))
+        screen.blit(self.pic,(x-1500,y-1000))
 class medKit:
     def __init__(self,pic,x,platY,scroll): #takes in pic, x pos, y pos, player
         self.worth=20
@@ -511,14 +511,16 @@ def story(pics): #actual game loop
                 running=False
                 
         if key.get_pressed()[27]: running=False
-        
+        nTime=datetime.now()
         #---MAP CHANGE--
         MAP=checkMap(MAP,MAPS,me)
         
         #---MOVES OBJECTS, CHECKS COLLIDE---
         me.move()
         MAP.objectMove()
-        MAP.objectCollide()
+        if (nTime.hour*3600+nTime.minute*60+nTime.second-(oTime.hour*3600+oTime.minute*60+oTime.second))==1:
+            MAP.objectCollide()
+            oTime=nTime
 
         #-----------------------------------
             
