@@ -23,7 +23,7 @@ screen=display.set_mode((1000,600))
 shadow=image.load("black.png")
 falling=image.load("falling.png")
 fallPic=transform.smoothscale(falling,(1000,2484))
-back = image.load("level2.png")
+back = image.load("level2.jpg")
 backPic=transform.smoothscale(back,(3000,600))
 mask = image.load("masklev2.png")
 maskPic=transform.smoothscale(mask,(3000,600))
@@ -32,7 +32,6 @@ backPic2=transform.smoothscale(back2,(3000,600))
 mask2 = image.load("masklev3.png")
 maskPic2=transform.smoothscale(mask2,(3000,600))
 GREEN = (0,255,0)
-#sprites=[transform.smoothscale(image.load("me.png"),(40,40)),transform.smoothscale(image.load("me2.png"),(40,40))]
 enePic=transform.smoothscale(image.load("enemy.png"),(60,60))
 medPic=transform.smoothscale(image.load("object/medkit.png"),(20,20))
 gem1Pic=transform.smoothscale(image.load("object/gem1.png"),(50,30))
@@ -40,14 +39,12 @@ torchPic=transform.smoothscale(image.load("object/ticon.png"),(50,50))
 iciclePic=image.load("object/icicle.png")
 
 #--------------
-    
 init()
 text=font.SysFont("Courier",20)
 torchPos=[]
-torchPics=[]
 for i in range(10):
     torchPos.append((i*50,50))
-    torchPics.append(shadow)
+
 
 #--SPRITES!--#
 def makeMove(name,start,end,typ): 
@@ -114,6 +111,9 @@ memove=0      #current move being performed
 skelpics=[]
 skelpics.append(makeMove("skel",1,6,"png"))
 skelpics.append(makeMove("skel",7,12,"png"))
+for a in range(2):
+    for b in range(6):
+        skelpics[a][b]=transform.smoothscale(skelpics[a][b],(40,80))
 sframe=0
 smove=0
 
@@ -175,6 +175,7 @@ class Player: #player object
         self.rect[0]=0
         self.rect[1]=0
         self.gems=0
+        
     def draw(self): #draws player on screen
         global meframe, memove
         pic = self.pics[memove][int(meframe)]
@@ -212,18 +213,12 @@ class Skeleton: #enemy object
                 moveLeft(self,MAP.mask,1)
                 climb(self,MAP.mask)
                 newMove=LEFT
-        else: #player is above or below self
-            sframe=0
-
-        if smove == newMove:     
-            sframe=sframe+0.4 #speeds up switching through frames
+  
+        sframe=sframe+0.3 #speeds up switching through frames
         if sframe >= len(self.pics[smove]):
-            sframe = 1
-        if newMove != -1:    
-            smove = newMove      
-            sframe = 1
- 
-            
+            sframe = 1 
+        smove = newMove      
+             
         if MAP!=0:
             moveDownSkel(self,MAP.mask,5)
         
@@ -316,6 +311,9 @@ class Torch:
         y=me.rect[1]+me.rect[3]//2
         screen.blit(self.pic,(x-1500,y-1000))
         
+    def reset(self):
+        self.start=datetime.now()
+        
 class medKit:
     def __init__(self,pic,x,platY,scroll): #takes in pic, x pos, y pos, player
         self.worth=20
@@ -364,17 +362,19 @@ class Gem:
                 screen.blit(self.pic,(self.rect[0]-2000,self.rect[1]))
 
 #--MAP--
+t=0
 totgems=0 #total number of gems collected during game
-def changeMap(curMap,MAPS,me): #takes in map, list of maps, and player object
+def changeMap(curMap,MAPS,me,t): #takes in map, list of maps, and player object
     global totgems
     #checks if player falls in gap in mask, and changes to next map
     if me.rect[1]>600: #player below mask level
         fallDown(me) #plays falling animation
-        me.reset() #resets player position and gem count
+        me.reset() #resets player position and gem count        
         if MAPS.index(curMap)==len(MAPS)-1: #map is final map
             endGame(totgems)
         else:
-            return MAPS[MAPS.index(curMap)+1] #returns next map
+            t.reset()
+            return MAPS[MAPS.index(curMap)+1] #returns next map            
     return curMap
 
 
@@ -494,7 +494,7 @@ def story(pics): #actual game loop
 
     MAPS=[Map(backPic,maskPic,True,me,enemy[0],kits[0],gems[0]),Map(backPic2,maskPic2,True,me,enemy[1],kits[1],gems[1])] #out of file lists pls
     MAP=MAPS[0]
-    t=Torch(torchPics[0])
+    t=Torch(shadow)
     hbar=(560,50,me.health,20)
     backh=hbar #full healthbar outline
     myClock=time.Clock()
@@ -509,10 +509,7 @@ def story(pics): #actual game loop
         nTime=datetime.now()
         
         #---MAP CHANGE--
-        #if MAP!=changeMap(MAP,MAPS,me):
-            #t=Torch(torchPics[MAPS.index(MAP)])
-        MAP=changeMap(MAP,MAPS,me)
-
+        MAP=changeMap(MAP,MAPS,me,t)
         
         #---MOVES OBJECTS, CHECKS COLLIDE---
         me.move()
