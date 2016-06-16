@@ -99,15 +99,19 @@ def moveDownSkel(self,mask,y):
         if getPixel(mask,self.rect[0]+15,self.rect[1]+45) != GREEN:
             self.rect[1] += 1
             
-#--LIST/INDICES OF FRAMES FOR SPRITE--
-RIGHT = 0 
-LEFT = 1
-pics = []
-pics.append(makeMove("hunts",10,18,"png"))      #pictures of Player sprite moving right
-pics.append(makeMove("hunts",142,150,"png"))    #pictures of Player sprite moving left
-frame=0     #current frame within the move
-move=0      #current move being performed
-
+#--LIST/INDICES OF FRAMES FOR SPRITES--
+RIGHT=0 
+LEFT=1
+mepics=[]
+mepics.append(makeMove("hunts",10,18,"png"))      #pictures of Player sprite moving right
+mepics.append(makeMove("hunts",142,150,"png"))    #pictures of Player sprite moving left
+meframe=0     #current frame within the move
+memove=0      #current move being performed
+skelpics=[]
+skelpics.append(makeMove("skel",1,6,"png"))
+skelpics.append(makeMove("skel",7,12,"png"))
+sframe=0
+smove=0
 
 #--PLAYER--
 class Player: #player object
@@ -122,7 +126,7 @@ class Player: #player object
         self.state=["RIGHT","WALK"]
         
     def move(self): #changes player position according to keyboard input
-        global frame, move, RIGHT, LEFT, MAP
+        global meframe, memove, RIGHT, LEFT, MAP
         keys=key.get_pressed()
         self.step=False
         newMove = -1
@@ -146,15 +150,15 @@ class Player: #player object
                 moveLeft(self,MAP.mask,10)
                 climb(self,MAP.mask)       
         else: #no keyboard input; player is standing still
-            frame = 0
+            meframe = 0
 
-        if move == newMove:     #0 is standing pose, so skips it when Player moves
-            frame = frame +0.4 #speeds up switching through frames
-            if frame >= len(pics[move]):
-                frame = 1
+        if memove == newMove:     #0 is standing pose, so skips it when Player moves
+            meframe+=0.4 #speeds up switching through frames
+            if meframe >= len(self.pics[memove]):
+                meframe = 1
         elif newMove != -1:     # a move was selected
-            move = newMove      # make that our current move
-            frame = 1
+            memove = newMove      # make that our current move
+            meframe = 1
  
     def hit(self): #decreases player health
         self.health-=5
@@ -165,8 +169,8 @@ class Player: #player object
         self.rect[1]=0
         self.gems=0
     def draw(self): #draws player on screen
-        global frame, move
-        pic = self.pics[move][int(frame)]
+        global meframe, memove
+        pic = self.pics[memove][int(meframe)]
         if 500<=self.rect[0]<=2500:
             screen.blit(pic,(500,self.rect[1]))
         elif self.rect[0]<500:
@@ -179,25 +183,42 @@ class Player: #player object
 class Skeleton: #enemy object
     "tracks start pos, current pos, speed"
     #do sprite for walking???
-    def __init__(self,pic,x,y,targ,scroll): #takes in picture and position
+    def __init__(self,pics,x,y,targ,scroll): #takes in picture and position
         self.startX=x
-        self.startY=y-pic.get_height()
-        self.rect=Rect(self.startX,self.startY,pic.get_width(),pic.get_height()) #rect position
+        self.startY=y
+        self.rect=Rect(self.startX,self.startY,25,50) #rect position
         self.speed=-2
-        self.pic=pic
+        self.pics=pics
         self.hit=0
         self.targ=targ
         self.scroll=scroll
+        
     def move(self,targ): #takes in target and moves towards it if target inside certain range, else moves within automated range
-        global MAP
-        if self.rect[0]<targ.rect[0]:
+        global sframe, smove, RIGHT, LEFT, MAP
+        newMove=-1
+        if self.rect[0]<targ.rect[0]: #player is right of self
             if MAP!=0:
                 moveRight(self,MAP.mask,1)
                 climb(self,MAP.mask)
-        elif self.rect[0]>targ.rect[0]:
+                newMove=RIGHT
+                
+        elif self.rect[0]>targ.rect[0]: #player is left of self
             if MAP!=0:
                 moveLeft(self,MAP.mask,1)
                 climb(self,MAP.mask)
+                newMove=LEFT
+        else: #player is above or below self
+            sframe=0
+
+        if smove == newMove:     
+            sframe=sframe+0.4 #speeds up switching through frames
+        if sframe >= len(self.pics[smove]):
+            sframe = 1
+        if newMove != -1:    
+            smove = newMove      
+            sframe = 1
+ 
+            
         if MAP!=0:
             moveDownSkel(self,MAP.mask,5)
         
@@ -210,12 +231,13 @@ class Skeleton: #enemy object
         self.hit=self.hit%2
         
     def draw(self):
+        pic = self.pics[smove][int(sframe)]
         if 500<=self.targ.rect[0]<=2500:
-            screen.blit(self.pic,(self.rect[0]-(self.targ.rect[0]-500),self.rect[1]))
+            screen.blit(pic,(self.rect[0]-(self.targ.rect[0]-500),self.rect[1]))
         elif self.targ.rect[0]<500:
-            screen.blit(self.pic,(self.rect[0],self.rect[1]))
+            screen.blit(pic,(self.rect[0],self.rect[1]))
         elif self.targ.rect[0]>2500:
-            screen.blit(self.pic,(self.rect[0]-2000,self.rect[1]))
+            screen.blit(pic,(self.rect[0]-2000,self.rect[1]))
 
 class Bat:
     def __init__(self,area,targ,scroll):
@@ -381,7 +403,7 @@ def fallDown(me): #animation of falling down hole
                 running=False
         screen.blit(fallPic,(0,offset))
         screen.blit(falls[frame%9],(500,selfdown))
-        screen.blit(shadow,(-1000,selfdown-980))
+        screen.blit(shadow,(-975,selfdown-980))
         screen.blit(screen.copy(),(0,0))
         frame+=1
         offset-=50
@@ -475,9 +497,9 @@ def endGame(gems): #final screen
 
 def story(pics): #actual game loop
     global MAP, gems
-    me=Player(pics)
+    me=Player(mepics)
     #KEEP INFO IN SEPARATE TEXT FILES LATER-LESS CLUTTER
-    enemy=[[Skeleton(enePic,randint(400,1000),500,me,True),Bat(Rect(300,0,1000,600),me,True),Icicle(Rect(400,0,1000,600),me,True)],[Skeleton(enePic,1000,500,me,True)]]
+    enemy=[[Skeleton(skelpics,randint(400,1000),400,me,True),Bat(Rect(300,0,1000,600),me,True),Icicle(Rect(400,0,1000,600),me,True)],[Skeleton(skelpics,1000,500,me,True)]]
     t=Torch(shadow)
     kits=[[medKit(medPic,i,500,True) for i in range(400,601,100)],[medKit(medPic,600,500,True)]] #all medkits
     gems=[[Gem(gem1Pic,900,500,True),Gem(gem1Pic,1200,500,True),Gem(gem1Pic,2000,500,True)],[Gem(gem1Pic,800,500,True),Gem(gem1Pic,1500,500,True),Gem(gem1Pic,2200,500,True)]] #all gems
@@ -602,7 +624,7 @@ def menu(): #main menu, holds and leads to screens
         screen.blit(nlabel3,(235,330))
                 
         display.flip()
-
+"""
 def mfSelect(): #player can select gender for sprite after start on menu, before actual game loop
     global text
     running=True
@@ -625,7 +647,7 @@ def mfSelect(): #player can select gender for sprite after start on menu, before
         screen.blit(text.render(labels[0],True,(255,255,255)),(buttons[0][0],buttons[0][1]))
         screen.blit(text.render(labels[1],True,(255,255,255)),(buttons[1][0],buttons[1][1]))
         display.flip()
-
+"""
 #--PAGE LOOP!--
 running = True
 OUTLINE = (150,50,30)
@@ -635,8 +657,7 @@ while page != "exit":
         page = menu()
     if page == "story":
         time.wait(100)
-        #me=sprites[mfSelect()]
-        page = story(pics)
+        page = story(mepics)
     if page == "instructions":
         page = instructions()        
     if page == "credits":
