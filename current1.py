@@ -249,7 +249,7 @@ class Bat:
             self.rect[1]+=2     
            
     def draw(self):
-        pics=makeMove("batty",1,4,"jpg") #all frames of bat sprite
+        pics=makeMove("batty",1,4,"png") #all frames of bat sprite
         self.frame+=0.2 #gradually adds to frame
         #screen.blit(pics[int(self.frame)%4],(self.rect[0],self.rect[1])) #constantly rotates through pictures
         if 500<=self.targ.rect[0]<=2500:
