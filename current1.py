@@ -36,16 +36,18 @@ GREEN = (0,255,0)
 enePic=transform.smoothscale(image.load("enemy.png"),(60,60))
 medPic=transform.smoothscale(image.load("object/medkit.png"),(20,20))
 gem1Pic=transform.smoothscale(image.load("object/gem1.png"),(50,30))
-torchPic=transform.smoothscale(image.load("object/torch.png"),(20,60))
+torchPic=transform.smoothscale(image.load("object/ticon.png"),(50,50))
 iciclePic=image.load("object/icicle.png")
 
 #--------------
     
 init()
 text=font.SysFont("Courier",20)
-torchRects=[]
+torchPos=[]
+torchPics=[]
 for i in range(10):
-    torchRects.append((i*30,50))
+    torchPos.append((i*50,50))
+    torchPics.append(shadow)
 
 #--SPRITES!--#
 def makeMove(name,start,end,typ): 
@@ -102,9 +104,11 @@ def moveDownSkel(self,mask,y):
 #--LIST/INDICES OF FRAMES FOR SPRITES--
 RIGHT=0 
 LEFT=1
+CLIMB=2
 mepics=[]
 mepics.append(makeMove("hunts",10,18,"png"))      #pictures of Player sprite moving right
 mepics.append(makeMove("hunts",142,150,"png"))    #pictures of Player sprite moving left
+mepics.append(makeMove("hunts",68,73,"png"))
 meframe=0     #current frame within the move
 memove=0      #current move being performed
 skelpics=[]
@@ -126,7 +130,7 @@ class Player: #player object
         self.state=["RIGHT","WALK"]
         
     def move(self): #changes player position according to keyboard input
-        global meframe, memove, RIGHT, LEFT, MAP
+        global meframe, memove, RIGHT, LEFT, CLIMB, MAP
         keys=key.get_pressed()
         self.step=False
         newMove = -1
@@ -148,7 +152,10 @@ class Player: #player object
             newMove = LEFT
             if MAP!=0:
                 moveLeft(self,MAP.mask,10)
-                climb(self,MAP.mask)       
+                climb(self,MAP.mask)
+        elif keys[K_UP]:
+            newMove=CLIMB
+            self.rect[0]+=4
         else: #no keyboard input; player is standing still
             meframe = 0
 
@@ -159,7 +166,7 @@ class Player: #player object
         elif newMove != -1:     # a move was selected
             memove = newMove      # make that our current move
             meframe = 1
- 
+    
     def hit(self): #decreases player health
         self.health-=5
         self.health=min(100,self.health)
@@ -184,9 +191,7 @@ class Skeleton: #enemy object
     "tracks start pos, current pos, speed"
     #do sprite for walking???
     def __init__(self,pics,x,y,targ,scroll): #takes in picture and position
-        self.startX=x
-        self.startY=y
-        self.rect=Rect(self.startX,self.startY,25,50) #rect position
+        self.rect=Rect(x,y,25,50) #rect position
         self.speed=-2
         self.pics=pics
         self.hit=0
@@ -222,14 +227,6 @@ class Skeleton: #enemy object
         if MAP!=0:
             moveDownSkel(self,MAP.mask,5)
         
-    def reset(self): #resets position to starting points
-        self.rect[0]=self.startX
-        
-    def hitReset(self): #switches between T/F values
-        global hitList
-        self.hit+=1
-        self.hit=self.hit%2
-        
     def draw(self):
         pic = self.pics[smove][int(sframe)]
         if 500<=self.targ.rect[0]<=2500:
@@ -243,20 +240,13 @@ class Bat:
     def __init__(self,area,targ,scroll):
         self.area=area        
         self.rect=Rect(area[0],0,40,50)
-        self.startX=self.rect[0]
         self.speed=-1
         self.frame=0
         self.scroll=scroll
         self.targ=targ
         self.hit=0
+        
     def move(self,targ):
-        """
-        if self.scroll==True:
-            if 500<=targ.X<=2500:
-                self.area[0]=self.startX-targ.X
-            if not targ.rect.colliderect(self.area):
-                self.rect[0]=self.startX-targ.X
-        """
         targRect=Rect(targ.rect[0],targ.rect[1],targ.rect[2],targ.rect[3])
         if targRect.colliderect(self.area):
             d=max(1,dist(self.rect[0],self.rect[1],targ.rect[0],targ.rect[1])) #distance between self and target
@@ -279,12 +269,12 @@ class Icicle:
     def __init__(self,area,targ,scroll):
         self.area=area        
         self.rect=Rect(area[0],0,40,50)
-        self.startX=self.rect[0]
         self.speed=-1
         self.scroll=scroll
         self.targ=targ
         self.hit=0
         self.count=0
+        
     def move(self,targ):
         targRect=Rect(targ.rect[0],targ.rect[1],targ.rect[2],targ.rect[3])
         if targRect.colliderect(self.area):
@@ -353,9 +343,8 @@ class medKit:
 
 
 class Gem:
-    def __init__(self,pic,x,platY,scroll): #takes in pic, coordinates, player, and if scrolling
-        self.startX=x
-        self.rect=Rect(x,platY-pic.get_height(),pic.get_width(),pic.get_height())
+    def __init__(self,pic,x,y,scroll): #takes in pic, coordinates, player, and if scrolling
+        self.rect=Rect(x,y-pic.get_height(),pic.get_width(),pic.get_height())
         self.got=False #False if not collected yet
         self.pic=pic
         self.scroll=scroll
@@ -375,24 +364,24 @@ class Gem:
                 screen.blit(self.pic,(self.rect[0]-2000,self.rect[1]))
 
 #--MAP--
-totgems=0
-def checkMap(curMap,MAPS,me): #takes in map, list of maps, and player object
+totgems=0 #total number of gems collected during game
+def changeMap(curMap,MAPS,me): #takes in map, list of maps, and player object
     global totgems
     #checks if player falls in gap in mask, and changes to next map
-    if me.rect[1]>600:
-            fallDown(me)
-            me.reset()
-            if MAPS.index(curMap)==len(MAPS)-1:
-                endGame(totgems)
-            else:
-                return MAPS[MAPS.index(curMap)+1]
+    if me.rect[1]>600: #player below mask level
+        fallDown(me) #plays falling animation
+        me.reset() #resets player position and gem count
+        if MAPS.index(curMap)==len(MAPS)-1: #map is final map
+            endGame(totgems)
+        else:
+            return MAPS[MAPS.index(curMap)+1] #returns next map
     return curMap
 
 
 def fallDown(me): #animation of falling down hole
     global totgems
     totgems+=me.gems
-    falls=makeMove("hunts",34,43,"png")
+    falls=makeMove("hunts",34,44,"png")
     frame=0
     offset=0
     selfdown=0
@@ -482,7 +471,7 @@ class Map: #takes in background pic, enemies, other objects, portal, and tracks 
 
 #--ENDS GAME!--
 def gameEnd(me,torch): #ends game loop if no health, torch runs out, or completed last map
-    if me.health==0 or torch.torchCount()/45>=10: 
+    if me.health==0 or torch.torchCount()/10>=10: 
         return True
     return False
 
@@ -499,14 +488,13 @@ def story(pics): #actual game loop
     global MAP, gems
     me=Player(mepics)
     #KEEP INFO IN SEPARATE TEXT FILES LATER-LESS CLUTTER
-    enemy=[[Skeleton(skelpics,randint(400,1000),400,me,True),Bat(Rect(300,0,1000,600),me,True),Icicle(Rect(400,0,1000,600),me,True)],[Skeleton(skelpics,1000,500,me,True)]]
-    t=Torch(shadow)
+    enemy=[[Skeleton(skelpics,randint(400,1000),400,me,True),Bat(Rect(300,0,1000,600),me,True),Icicle(Rect(400,0,1000,600),me,True)],[Skeleton(skelpics,1000,500,me,True)]]    
     kits=[[medKit(medPic,i,500,True) for i in range(400,601,100)],[medKit(medPic,600,500,True)]] #all medkits
     gems=[[Gem(gem1Pic,900,500,True),Gem(gem1Pic,1200,500,True),Gem(gem1Pic,2000,500,True)],[Gem(gem1Pic,800,500,True),Gem(gem1Pic,1500,500,True),Gem(gem1Pic,2200,500,True)]] #all gems
 
     MAPS=[Map(backPic,maskPic,True,me,enemy[0],kits[0],gems[0]),Map(backPic2,maskPic2,True,me,enemy[1],kits[1],gems[1])] #out of file lists pls
     MAP=MAPS[0]
-
+    t=Torch(torchPics[0])
     hbar=(560,50,me.health,20)
     backh=hbar #full healthbar outline
     myClock=time.Clock()
@@ -519,8 +507,12 @@ def story(pics): #actual game loop
                 
         if key.get_pressed()[27]: running=False
         nTime=datetime.now()
+        
         #---MAP CHANGE--
-        MAP=checkMap(MAP,MAPS,me)
+        #if MAP!=changeMap(MAP,MAPS,me):
+            #t=Torch(torchPics[MAPS.index(MAP)])
+        MAP=changeMap(MAP,MAPS,me)
+
         
         #---MOVES OBJECTS, CHECKS COLLIDE---
         me.move()
@@ -539,12 +531,12 @@ def story(pics): #actual game loop
         MAP.objectDraw()
         t.torchLight(me)
         
-        for i in range(10-t.torchCount()//45): #number of torches left out of ten
-            screen.blit(torchPic,torchRects[i]) 
+        for i in range(10-t.torchCount()//10): #number of torches left out of ten
+            screen.blit(torchPic,torchPos[i]) 
             
         draw.rect(screen,(255,255,255),backh,6)
         draw.rect(screen,(255,0,0),hbar)
-        screen.blit((text.render(str(45-t.torchCount()%45),True,(255,255,255))),(740,80)) #displays count down in seconds to when a torch is used up
+        screen.blit((text.render(str(10-t.torchCount()%10),True,(255,255,255))),(740,80)) #displays count down in seconds to when a torch is used up
         screen.blit((text.render(str(me.gems)+"/"+str(MAP.gemCount),True,(255,255,255))),(735,100)) #displays number of gems collected
         display.flip()
         
@@ -624,30 +616,7 @@ def menu(): #main menu, holds and leads to screens
         screen.blit(nlabel3,(235,330))
                 
         display.flip()
-"""
-def mfSelect(): #player can select gender for sprite after start on menu, before actual game loop
-    global text
-    running=True
-    buttons=[Rect(screen.get_width()//5*i,200,120,50) for i in range(1,4,2)]
-    labels=["FEMALE","MALE"]
 
-    while running:
-        for e in event.get():
-            if e.type==QUIT:
-                break
-        screen.fill((0,0,0))
-        pos=mouse.get_pos()
-        mb=mouse.get_pressed()
-        for b,l in zip(buttons,labels):
-            draw.rect(screen,(255,255,255),b,2)
-            if b.collidepoint(pos):
-                draw.rect(screen,(255,0,0),b,2)
-                if mb[0]==1:
-                    return labels.index(l)
-        screen.blit(text.render(labels[0],True,(255,255,255)),(buttons[0][0],buttons[0][1]))
-        screen.blit(text.render(labels[1],True,(255,255,255)),(buttons[1][0],buttons[1][1]))
-        display.flip()
-"""
 #--PAGE LOOP!--
 running = True
 OUTLINE = (150,50,30)
@@ -656,7 +625,7 @@ while page != "exit":
     if page == "menu":
         page = menu()
     if page == "story":
-        time.wait(100)
+        time.wait(50)
         page = story(mepics)
     if page == "instructions":
         page = instructions()        
