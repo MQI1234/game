@@ -106,10 +106,12 @@ def moveDownSkel(self,mask,y):
 RIGHT=0 
 LEFT=1
 CLIMB=2
+DEAD=3
 mepics=[]
 mepics.append(makeMove("hunts",10,18,"png"))      #pictures of Player sprite moving right
 mepics.append(makeMove("hunts",142,150,"png"))    #pictures of Player sprite moving left
 mepics.append(makeMove("hunts",68,73,"png"))
+mepics.append(makeMove("hunts",116,116,"png"))
 meframe=0 #current frame within the move for Player
 memove=0 #current move being performed for Player
 skelpics=[]
@@ -177,7 +179,7 @@ class Player: #player object
     
     def hit(self): #decreases player health
         self.health-=5
-        self.health=min(100,self.health)
+        self.health=max(min(200,self.health),0)
         
     def reset(self): #resets positions and gems before new map
         self.rect[0]=0
@@ -185,8 +187,11 @@ class Player: #player object
         self.gems=0
         
     def draw(self): #draws player on screen
-        global meframe, memove
-        pic = self.pics[memove][int(meframe)]
+        global meframe, memove, DEAD        
+        if self.health<=0: #no health left
+            pic=self.pics[DEAD][0]
+        else:
+            pic = self.pics[memove][int(meframe)]
         if 500<=self.rect[0]<=2500: #within scrolling range
             screen.blit(pic,(500,self.rect[1])) #blits at set position
         #out of scrolling range, sprite draws at different x values on screen
@@ -478,7 +483,7 @@ class Map: #takes in background pic, enemies, other objects, portal, and tracks 
 
 #--ENDS GAME!--
 def gameEnd(me,torch): #ends game loop if no health, torch runs out, or completed last map
-    if me.health==0 or torch.torchCount()/10>=10: 
+    if torch.torchCount()/10>=10: 
         return True
     return False
 
