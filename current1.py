@@ -23,13 +23,13 @@ screen=display.set_mode((1000,600))
 shadow=image.load("black.png")
 falling=image.load("falling.png")
 fallPic=transform.smoothscale(falling,(1000,2484))
-back = image.load("level2.jpg")
+back = image.load("back/level2.jpg")
 backPic=transform.smoothscale(back,(3000,600))
-mask = image.load("masklev2.png")
+mask = image.load("mask/masklev2.png")
 maskPic=transform.smoothscale(mask,(3000,600))
-back2 = image.load("level3.jpg")
+back2 = image.load("back/level3.jpg")
 backPic2=transform.smoothscale(back2,(3000,600))
-mask2 = image.load("masklev3.png")
+mask2 = image.load("mask/masklev3.png")
 maskPic2=transform.smoothscale(mask2,(3000,600))
 GREEN = (0,255,0)
 enePic=transform.smoothscale(image.load("enemy.png"),(60,60))
@@ -44,7 +44,6 @@ text=font.SysFont("Courier",20)
 torchPos=[]
 for i in range(10):
     torchPos.append((i*50,50))
-
 
 #--SPRITES!--#
 def makeMove(name,start,end,typ): 
