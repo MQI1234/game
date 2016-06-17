@@ -110,7 +110,12 @@ DEAD=3
 mepics=[]
 mepics.append(makeMove("hunts",10,18,"png"))      #pictures of Player sprite moving right
 mepics.append(makeMove("hunts",142,150,"png"))    #pictures of Player sprite moving left
-mepics.append(makeMove("hunts",68,73,"png"))
+climbpics=makeMove("hunts",97,108,"png")
+#empty pictures
+del climbpics[5]
+del climbpics[10]
+#del climbpics[
+mepics.append(climbpics)
 mepics.append(makeMove("hunts",116,116,"png"))
 meframe=0 #current frame within the move for Player
 memove=0 #current move being performed for Player
@@ -149,7 +154,7 @@ class Player: #player object
             if MAP!=0:
                 moveUp(self,MAP.mask,-self.vy)
         elif self.vy > 0:
-            if MAP!=0:
+            if MAP!=0 and memove!=CLIMB:
                 moveDown(self,MAP.mask,self.vy)            
         if keys[K_SPACE] and self.step:
             self.vy = -14    
@@ -165,7 +170,7 @@ class Player: #player object
                 climb(self,MAP.mask)
         elif keys[K_UP]:
             newMove=CLIMB
-            self.rect[0]+=4
+            self.rect[1]-=4
         else: #no keyboard input; player is standing still
             meframe = 0
 
