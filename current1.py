@@ -151,7 +151,7 @@ class Player: #player object
     def move(self): #changes player position according to keyboard input
         global meframe, memove, RIGHT, LEFT, CLIMB, MAP
         keys=key.get_pressed()
-        if self.scroll=False: #vertical scroll
+        if self.scroll==False: #vertical scroll
             maxX=1000
         else:
             maxX=3000
@@ -176,7 +176,7 @@ class Player: #player object
             if MAP!=0:
                 moveLeft(self,MAP.mask,10)
                 climb(self,MAP.mask,27)
-        elif keys[K_UP] and self.scroll=False:
+        elif keys[K_UP] and self.scroll==False:
             newMove=CLIMB
             self.rect[1]-=4
         else: #no keyboard input; player is standing still
