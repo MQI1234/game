@@ -94,17 +94,17 @@ def moveLeft(self,mask,vx):
     for i in range(vx):
         if getPixel(mask,self.rect[0]+2,self.rect[1]+15) != GREEN:
             self.rect[0] -= 1
-def climb(self,mask):
-    y = self.rect[1] + 27
+def climb(self,mask,h):
+    y = self.rect[1] + h
     while y > self.rect[1]+17 and getPixel(mask,self.rect[0],y) == GREEN:
         y-=1
     if y > self.rect[1]+17:
-        self.rect[1] = y - 27
+        self.rect[1] = y - h
 
 #--ENEMY SPECIFIC MOVEMENT--
 def moveDownSkel(self,mask,y):
     for i in range(y):
-        if getPixel(mask,self.rect[0]+15,self.rect[1]+45) != GREEN:
+        if getPixel(mask,self.rect[0]+15,self.rect[1]+54) != GREEN:
             self.rect[1] += 1
             
 #--LIST/INDICES OF FRAMES FOR SPRITES--
@@ -129,7 +129,7 @@ skelpics.append(makeMove("skel",1,6,"png"))
 skelpics.append(makeMove("skel",7,12,"png"))
 for a in range(2):
     for b in range(6):
-        skelpics[a][b]=transform.smoothscale(skelpics[a][b],(40,80)) #changes sixe of all skeleton pics
+        skelpics[a][b]=transform.smoothscale(skelpics[a][b],(30,60)) #changes sixe of all skeleton pics
 sframe=0 #current frame within the move for Skeleton
 smove=0 #current move being performed for Skeleton
                 
@@ -167,12 +167,12 @@ class Player: #player object
             newMove = RIGHT
             if MAP!=0:
                 moveRight(self,MAP.mask,10)
-                climb(self,MAP.mask)                
+                climb(self,MAP.mask,27)                
         elif keys[K_LEFT] and self.rect[0] > 0:
             newMove = LEFT
             if MAP!=0:
                 moveLeft(self,MAP.mask,10)
-                climb(self,MAP.mask)
+                climb(self,MAP.mask,27)
         elif keys[K_UP]:
             newMove=CLIMB
             self.rect[1]-=4
@@ -228,13 +228,13 @@ class Skeleton: #enemy object
         if self.rect[0]<targ.rect[0]: #player is right of self
             if MAP!=0:
                 moveRight(self,MAP.mask,1)
-                climb(self,MAP.mask)
+                climb(self,MAP.mask,50)
                 newMove=RIGHT
                 
         elif self.rect[0]>targ.rect[0]: #player is left of self
             if MAP!=0:
                 moveLeft(self,MAP.mask,1)
-                climb(self,MAP.mask)
+                climb(self,MAP.mask,29)
                 newMove=LEFT
   
         sframe=sframe+0.3 #speeds up switching through frames
