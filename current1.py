@@ -42,9 +42,14 @@ gem1Pic=transform.smoothscale(image.load("object/gem1.png"),(50,30))
 torchPic=transform.smoothscale(image.load("object/ticon.png"),(50,50))
 iciclePic=transform.smoothscale(image.load("object/icicle.png"),(30,60))
 
+#--GAME LOOP PICS--
+endPic=transform.smoothscale(image.load("gameover.png"),(666,600))
+
 #--------------
 init()
 text=font.SysFont("Courier",20)
+title=font.SysFont("Times New Roman",100,True)
+subtitle=font.SysFont("Times New Roman",50)
 torchPos=[]
 for i in range(10):
     torchPos.append((i*50,50)) #appends points to list
@@ -487,17 +492,32 @@ class Map: #takes in background pic, enemies, other objects, portal, and tracks 
 
 
 #--ENDS GAME!--
-def gameEnd(me,torch): #ends game loop if no health, torch runs out, or completed last map
-    if torch.torchCount()/10>=10: 
+def playEnd(me,torch): #ends game loop if no health, torch runs out, or completed last map
+    global totgems, running
+    if torch.torchCount()/10>=10: #torches ran out
+        torchOut()
+        screen.blit((title.render("GAME OVER",True,(255,0,0))),(170,100))
+        display.flip()
         return True
-    return False
+        
+    elif me.health<=0: #no health left in Player
+        noHealth()
+        screen.blit((title.render("GAME OVER",True,(255,0,0))),(170,100))
+        display.flip()
+        return True
+    return False    
+def torchOut(): #torches ran out
+    screen.blit(endPic,(167,0))
+    screen.blit((subtitle.render("Your light has run out...",True,(255,0,0))),(180,300))
+def noHealth(): #no health left in Player
+    screen.blit(endPic,(167,0))
+    screen.blit((subtitle.render("Your life has run out...",True,(255,0,0))),(180,300))
 
 def endGame(gems): #final screen
-    screen.fill((0,0,0))
-    screen.blit((text.render("YOU GOT:"+str(gems)+"/7",True,(255,255,255))),(360,280))
+    screen.blit((subtitle.render("YOU GOT:"+str(gems)+"/7",True,(255,0,0))),(250,300))
     display.flip()
-    time.wait(2000)
-    quit()
+    time.wait(5000)
+    running=False
     
 #--MENU--
 def story(pics): #actual game loop
@@ -555,12 +575,9 @@ def story(pics): #actual game loop
         #---------------------
         
         #---CHECKS FOR ENDING GAME---
-        if gameEnd(me,t)==True:
-            screen.fill((0,0,0))
-            screen.blit((text.render("GAME OVER",True,(255,255,255))),(360,280))
-            display.flip()
-            time.wait(1000)
-            endGame(gems)
+        if playEnd(me,t)==True:
+            running=False
+
         #---------------------
         myClock.tick(60)
         
