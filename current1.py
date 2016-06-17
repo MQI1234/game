@@ -2,14 +2,7 @@
 
 """
 TO DO:
-
-linear map changes: portals going down, transition key? gem quota? final map?
-less awkwardness in enemy movements
-automatic enemy movement and tracking...
-torchtime fixing
-photoshop torcheffect man
-might have to do special movement function set for skeleton
-dream: vertical scroll if time...
+vertical and horizontal scroll if time...
 """
 
 from pygame import *
@@ -33,6 +26,10 @@ back2 = image.load("back/level3.jpg")
 backPic2=transform.smoothscale(back2,(3000,600))
 mask2 = image.load("mask/masklev3.png")
 maskPic2=transform.smoothscale(mask2,(3000,600))
+back3 = image.load("back/level4.jpg")
+backPic3=transform.smoothscale(back3,(3000,600))
+mask3 = image.load("mask/masklev4.png")
+maskPic3=transform.smoothscale(mask3,(3000,600))
 GREEN = (0,255,0)
 
 #--OBJECTPICS--
@@ -134,6 +131,7 @@ sframe=0 #current frame within the move for Skeleton
 smove=0 #current move being performed for Skeleton
                 
 #--PLACEHOLDER VARIABLES--
+MAPS=[0,1] #placeholder list
 MAP=0 #no set map yet
 t=0 #holds variable for Torch object
 totgems=0 #total number of gems collected during game
@@ -141,17 +139,22 @@ totgems=0 #total number of gems collected during game
 #--PLAYER--
 class Player: #player object
     "tracks current position, velocity, gems, step, and health"
-    def __init__(self,pics): #takes in picture
+    def __init__(self,pics,scroll): #takes in picture
         self.pics=pics
         self.vy=0
         self.step=True
         self.health=200
         self.gems=0
         self.rect=Rect(0,300,40,50)
+        self.scroll=scroll
         
     def move(self): #changes player position according to keyboard input
         global meframe, memove, RIGHT, LEFT, CLIMB, MAP
         keys=key.get_pressed()
+        if self.scroll=False: #vertical scroll
+            maxX=1000
+        else:
+            maxX=3000
         self.step=False
         newMove = -1
         self.vy+= 1         #add gravity to VY
@@ -163,7 +166,7 @@ class Player: #player object
                 moveDown(self,MAP.mask,self.vy)            
         if keys[K_SPACE] and self.step:
             self.vy = -14    
-        elif keys[K_RIGHT] and self.rect[0] < 3000:
+        elif keys[K_RIGHT] and self.rect[0] < maxX:
             newMove = RIGHT
             if MAP!=0:
                 moveRight(self,MAP.mask,10)
@@ -173,7 +176,7 @@ class Player: #player object
             if MAP!=0:
                 moveLeft(self,MAP.mask,10)
                 climb(self,MAP.mask,27)
-        elif keys[K_UP]:
+        elif keys[K_UP] and self.scroll=False:
             newMove=CLIMB
             self.rect[1]-=4
         else: #no keyboard input; player is standing still
@@ -192,24 +195,36 @@ class Player: #player object
         self.health=max(min(200,self.health),0)
         
     def reset(self): #resets positions and gems before new map
+        global MAPS, MAP
         self.rect[0]=0
         self.rect[1]=0
         self.gems=0
+        if MAPS.index(MAP)==len(MAPS)-1: #last map
+            self.scroll=False #vertical scroll
         
     def draw(self): #draws player on screen
-        global meframe, memove, DEAD        
+        global meframe, memove, DEAD
         if self.health<=0: #no health left
-            pic=self.pics[DEAD][0]
+                pic=self.pics[DEAD][0]
         else:
             pic = self.pics[memove][int(meframe)]
-        if 500<=self.rect[0]<=2500: #within scrolling range
-            screen.blit(pic,(500,self.rect[1])) #blits at set position
-        #out of scrolling range, sprite draws at different x values on screen
-        elif self.rect[0]<500:
-            screen.blit(pic,(self.rect[0],self.rect[1]))
-        elif self.rect[0]>2500:
-            screen.blit(pic,(self.rect[0]-2000,self.rect[1]))
-       
+            
+        if self.scroll==True: #horizontal scroll            
+            if 500<=self.rect[0]<=2500: #within scrolling range
+                screen.blit(pic,(500,self.rect[1])) #blits at set position
+            #out of scrolling range, sprite draws at different x values on screen
+            elif self.rect[0]<500:
+                screen.blit(pic,(self.rect[0],self.rect[1]))
+            elif self.rect[0]>2500:
+                screen.blit(pic,(self.rect[0]-2000,self.rect[1]))
+        else: #vertical scroll
+            if 300<=self.rect[1]<=1500:
+                screen.blit(pic,(self.rect[0],300))
+            elif self.rect[1]<300:
+                screen.blit(pic,(self.rect[0],self.rect[1]))
+            elif self.rect[1]>1500:
+                screen.blit(pic,(self.rect[0],self.rect[1]-1200))
+           
 
 #--ENEMIES--
 class Skeleton: #enemy object
@@ -392,9 +407,7 @@ def changeMap(curMap,MAPS,me,t): #takes in map, list of maps, and player object
     if me.rect[1]>600: #player below mask level
         fallDown(me) #plays falling animation
         me.reset() #resets player position and gem count        
-        if MAPS.index(curMap)==len(MAPS)-1: #map is final map
-            endGame(totgems)
-        else:
+        if MAPS.index(curMap)!=len(MAPS)-1: #map is not final map
             t.reset()
             return MAPS[MAPS.index(curMap)+1] #returns next map            
     return curMap
@@ -439,7 +452,8 @@ class Map: #takes in background pic, enemies, other objects, portal, and tracks 
         self.mask=mask
         self.gemCount=len(gems)
     def backDraw(self): #draws itself back according to offset
-        if self.scroll==True:
+        
+        if self.scroll==True: #horizontal scroll
             if 500<=self.me.rect[0]<=2500: #scroll within this range
                 self.offset=-1*(self.me.rect[0]-500) #offset
                 if self.offset>0: #never blits right to black screen
@@ -452,8 +466,20 @@ class Map: #takes in background pic, enemies, other objects, portal, and tracks 
                 screen.blit(self.pic,(0,0))
             elif self.me.rect[0]>2500: #not scroll while in this range
                 screen.blit(self.pic,(-2000,0))
+                
         else:
-            screen.blit(self.pic,(0,0))
+            if 300<=self.me.rect[1]<=1500: #CHANGEABLE ACCORDING TO PIC
+                self.offset=-1*(self.me.rect[1]-300) #offset
+                if self.offset>0: #never blits right to black screen
+                    self.offset=0
+                if self.offset<-1*(self.pic.get_height()-screen.get_height()): #never blits left to black screen
+                    self.offset=-1*(self.pic.get_height()-screen.get_height())
+                screen.blit(self.pic,(-1000,self.offset)) #CHANGEABLE ACCORDING TO PIC
+            #stationary displays
+            elif self.me.rect[1]<300: #not scroll while in this range
+                screen.blit(self.pic,(-1000,-1200))
+            elif self.me.rect[1]>1500: #not scroll while in this range
+                screen.blit(self.pic,(-1000,0))
             
     def objectMove(self): #moves all objects of Map        
         #if the lists are not empty, moves objects
@@ -516,20 +542,23 @@ def noHealth(): #no health left in Player
     screen.blit((subtitle.render("Your life has run out...",True,(255,0,0))),(180,300))
 
 def endGame(gems): #final screen
-    screen.blit((subtitle.render("YOU GOT:"+str(gems)+"/7",True,(255,0,0))),(250,300))
+    screen.fill((0,0,0))
+    screen.blit((title.render("CONGRATULATIONS, YOU WIN!",True,(255,0,0))),(200,100))
+    screen.blit((subtitle.render("YOU GOT:"+str(gems)+"/7",True,(255,0,0))),(270,350))
     display.flip()
-    time.wait(5000)
-    running=False
+    time.wait(3000)
+    return "menu"
     
 #--MENU--
 def story(pics): #actual game loop
-    global MAP, gems
-    me=Player(mepics) #Player
+    global MAP, totgems
+    me=Player(mepics,True) 
     #KEEP INFO IN SEPARATE TEXT FILES LATER-LESS CLUTTER
     enemy=[[Skeleton(skelpics,randint(400,1000),400,me,True),Bat(Rect(300,0,1000,600),me,True),Icicle(Rect(400,0,1000,600),me,True)],[Skeleton(skelpics,1000,500,me,True)]]    
     kits=[[medKit(medPic,i,500,True) for i in range(400,601,100)],[medKit(medPic,600,500,True)]] #all medkits
     gems=[[Gem(gem1Pic,900,500,True),Gem(gem1Pic,1200,500,True),Gem(gem1Pic,2000,500,True)],[Gem(gem1Pic,800,500,True),Gem(gem1Pic,1500,500,True),Gem(gem1Pic,2200,500,True)]] #all gems
-    MAPS=[Map(backPic,maskPic,True,me,enemy[0],kits[0],gems[0]),Map(backPic2,maskPic2,True,me,enemy[1],kits[1],gems[1])] #list of all maps
+    MAPS=[Map(backPic,maskPic,True,me,enemy[0],kits[0],gems[0]),Map(backPic2,maskPic2,True,me,enemy[1],kits[1],gems[1]),
+          Map(backPic3,maskPic3,True,me,enemy[0],kits[0],gems[0])] #list of all maps
     MAP=MAPS[0] #starts with first map
     t=Torch(shadow) #Torch
     hbar=(560,50,me.health,20) #healthbar
@@ -547,6 +576,10 @@ def story(pics): #actual game loop
         
         #---MAP CHANGE--
         MAP=changeMap(MAP,MAPS,me,t)
+        if MAPS.index(MAP)==len(MAPS)-1:
+            if me.rect[1]==1800: #final map done
+                endgame(totgems)
+            
         
         #---MOVES OBJECTS, CHECKS COLLIDE---
         me.move()
@@ -579,7 +612,7 @@ def story(pics): #actual game loop
         #---CHECKS FOR ENDING GAME---
         if playEnd(me,t)==True:
             running2 = True
-            while running2: #--MORE OPTIONS LOOP--
+            while running2: #MORE OPTIONS LOOP
                 for evnt in event.get():          
                     if evnt.type == QUIT:
                         running2= False
