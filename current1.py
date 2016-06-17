@@ -507,9 +507,11 @@ def playEnd(me,torch): #ends game loop if no health, torch runs out, or complete
         return True
     return False    
 def torchOut(): #torches ran out
+    screen.fill((0,0,0))
     screen.blit(endPic,(167,0))
     screen.blit((subtitle.render("Your light has run out...",True,(255,0,0))),(180,300))
 def noHealth(): #no health left in Player
+    screen.fill((0,0,0))
     screen.blit(endPic,(167,0))
     screen.blit((subtitle.render("Your life has run out...",True,(255,0,0))),(180,300))
 
@@ -576,7 +578,17 @@ def story(pics): #actual game loop
         
         #---CHECKS FOR ENDING GAME---
         if playEnd(me,t)==True:
-            running=False
+            running2 = True
+            while running2: #--MORE OPTIONS LOOP--
+                for evnt in event.get():          
+                    if evnt.type == QUIT:
+                        running2= False
+                if key.get_pressed()[27]: quit()
+                keys=key.get_pressed()
+                if keys[K_z]: #play again
+                    return "story" #resets game loop
+                if keys[K_x]: #go to menu
+                    return "menu"
 
         #---------------------
         myClock.tick(60)
